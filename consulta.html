@@ -58,10 +58,16 @@ button {
   cursor: pointer;
 }
 
+button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
 #mensaje {
   margin-top: 18px;
   text-align: center;
   font-size: 14px;
+  overflow-wrap: anywhere;
 }
 
 #resultado {
@@ -138,6 +144,7 @@ button {
   <p id="mensaje"></p>
 
   <div id="resultado">
+
     <h2>Credencial encontrada</h2>
 
     <div class="dato">
@@ -171,6 +178,7 @@ button {
     </div>
 
     <div id="estado" class="estado"></div>
+
   </div>
 
 </div>
@@ -193,6 +201,7 @@ import {
 }
 from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
+
 const firebaseConfig = {
   apiKey: "AIzaSyC0X4ZhY-Owf7bV2oNn15YR1KGIYnSCgnA",
   authDomain: "expo-escolar-2026.firebaseapp.com",
@@ -203,19 +212,27 @@ const firebaseConfig = {
   measurementId: "G-JC0W6XCN4W"
 };
 
+
+// Inicializar Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+
+// Elementos HTML
 const formulario = document.getElementById("formulario");
 const mensaje = document.getElementById("mensaje");
 const resultado = document.getElementById("resultado");
 const boton = document.getElementById("boton");
 
+
+// Obtener el token del QR
 const token = new URLSearchParams(
   window.location.search
 ).get("token");
 
+
+// Iniciar proceso de consulta
 formulario.addEventListener("submit", async (e) => {
 
   e.preventDefault();
@@ -223,88 +240,151 @@ formulario.addEventListener("submit", async (e) => {
   resultado.style.display = "none";
   boton.disabled = true;
   boton.textContent = "VERIFICANDO...";
+
   mensaje.style.color = "#092e68";
   mensaje.textContent = "Verificando identidad...";
 
   try {
 
+    // 1. Verificar token
     if (!token) {
-      throw new Error("No se encontró el código QR. Escaneá nuevamente.");
+      throw new Error(
+        "No se encontró el código QR. Escaneá nuevamente."
+      );
     }
 
-    // 1. Iniciar sesión del directivo
-    const correo = document.getElementById("correo").value.trim();
-    const contrasena = document.getElementById("contrasena").value;
 
+    // 2. Obtener datos de acceso
+    const correo = document
+      .getElementById("correo").value.trim();
+
+    const contrasena = document
+      .getElementById("contrasena").value;
+
+
+    // 3. Iniciar sesión del directivo
     const credencial = await signInWithEmailAndPassword(
       auth,
       correo,
-      contraseña
+      contrasena
     );
 
     const uid = credencial.user.uid;
 
-    // 2. Comprobar autorización del directivo
-    const directivoRef = doc(db, "directivos", uid);
+
+    // 4. Comprobar autorización
+    const directivoRef = doc(
+      db,
+      "directivos",
+      uid
+    );
+
     const directivoSnap = await getDoc(directivoRef);
 
-    if (
-      !directivoSnap.exists() ||
-      directivoSnap.data().autorizado !== true
-    ) {
-      throw new Error("Tu cuenta no está autorizada para consultar credenciales.");
+    if (!directivoSnap.exists()) {
+      throw new Error(
+        "No existe un documento de autorización para este directivo. UID: " + uid
+      );
     }
 
-    // 3. Buscar la credencial por el token del QR
-    const registroRef = doc(db, "registros", token);
+    if (directivoSnap.data().autorizado !== true) {
+      throw new Error(
+        "El campo autorizado no tiene el valor Boolean true."
+      );
+    }
+
+
+    // 5. Buscar registro del visitante
+    const registroRef = doc(
+      db,
+      "registros",
+      token
+    );
+
     const registroSnap = await getDoc(registroRef);
 
     if (!registroSnap.exists()) {
-      throw new Error("No se encontró ninguna credencial con este código QR.");
+      throw new Error(
+        "No se encontró ninguna credencial con este código QR."
+      );
     }
 
     const datos = registroSnap.data();
 
-    // 4. Mostrar los datos del visitante
-    document.getElementById("nombre").textContent = datos.nombre || "";
-    document.getElementById("apellido").textContent = datos.apellido || "";
-    document.getElementById("dni").textContent = datos.dni || "";
-    document.getElementById("correoVisitante").textContent = datos.correo || "";
-    document.getElementById("categoria").textContent = datos.categoria || "";
-    document.getElementById("institucion").textContent = datos.institucion || "";
 
-    // 5. Comprobar vencimiento de 24 horas
+    // 6. Mostrar información del visitante
+    document.getElementById("nombre").textContent =
+      datos.nombre || "";
+
+    document.getElementById("apellido").textContent =
+      datos.apellido || "";
+
+    document.getElementById("dni").textContent =
+      datos.dni || "";
+
+    document.getElementById("correoVisitante").textContent =
+      datos.correo || "";
+
+    document.getElementById("categoria").textContent =
+      datos.categoria || "";
+
+    document.getElementById("institucion").textContent =
+      datos.institucion || "";
+
+
+    // 7. Comprobar vencimiento de 24 horas
     const estado = document.getElementById("estado");
 
-    if (!datos.createdAt || typeof datos.createdAt.toDate !== "function") {
-      estado.textContent = "NO SE PUDO COMPROBAR EL VENCIMIENTO";
+    if (
+      !datos.createdAt ||
+      typeof datos.createdAt.toDate !== "function"
+    ) {
+
+      estado.textContent =
+        "NO SE PUDO COMPROBAR EL VENCIMIENTO";
+
       estado.style.background = "#fff3cd";
       estado.style.color = "#856404";
+
     } else {
+
       const fechaCreacion = datos.createdAt.toDate();
-      const vencimiento = fechaCreacion.getTime() + (24 * 60 * 60 * 1000);
+
+      const vencimiento =
+        fechaCreacion.getTime() +
+        (24 * 60 * 60 * 1000);
+
       const vigente = Date.now() < vencimiento;
 
       if (vigente) {
+
         estado.textContent = "✓ CREDENCIAL VIGENTE";
         estado.style.background = "#d1fae5";
         estado.style.color = "#065f46";
+
       } else {
+
         estado.textContent = "✕ CREDENCIAL VENCIDA";
         estado.style.background = "#fee2e2";
         estado.style.color = "#991b1b";
+
       }
     }
 
+
+    // 8. Mostrar resultado
     mensaje.style.color = "green";
-    mensaje.textContent = "Identidad del directivo confirmada. Acceso autorizado.";
+
+    mensaje.textContent =
+      "Identidad del directivo confirmada. Acceso autorizado.";
 
     formulario.style.display = "none";
     resultado.style.display = "block";
 
+
   } catch (error) {
 
-    console.error(error);
+    console.error("Error de consulta:", error);
 
     mensaje.style.color = "red";
     mensaje.textContent = error.message;
