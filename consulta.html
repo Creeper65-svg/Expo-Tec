@@ -4,7 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Acceso de directivos - Expo Escolar 2026</title>
+<title>Consulta de directivos - Expo Escolar 2026</title>
 
 <style>
 * { box-sizing: border-box; }
@@ -23,17 +23,14 @@ body {
 .contenedor {
   background: white;
   width: 100%;
-  max-width: 400px;
-  padding: 30px;
+  max-width: 430px;
+  padding: 25px;
   border-radius: 18px;
   box-shadow: 0 5px 20px #0002;
   text-align: center;
 }
 
-h1 {
-  color: #092e68;
-  font-size: 25px;
-}
+h1 { color: #092e68; font-size: 25px; }
 
 input {
   width: 100%;
@@ -57,13 +54,40 @@ button {
   cursor: pointer;
 }
 
-button:hover {
-  background: #174b91;
-}
-
 #mensaje {
   margin-top: 18px;
   font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+#resultado {
+  display: none;
+  text-align: left;
+  margin-top: 25px;
+  border-top: 2px solid #092e68;
+  padding-top: 15px;
+}
+
+.dato {
+  padding: 12px;
+  margin: 8px 0;
+  background: #f1f4fa;
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
+
+.dato strong {
+  display: block;
+  color: #092e68;
+  margin-bottom: 5px;
+}
+
+#estado {
+  text-align: center;
+  font-weight: bold;
+  padding: 12px;
+  border-radius: 8px;
+  background: #f1f4fa;
 }
 </style>
 </head>
@@ -73,13 +97,9 @@ button:hover {
 <div class="contenedor">
 
   <h1>🎓 EXPO ESCOLAR 2026</h1>
-
   <h2>Acceso de directivos</h2>
 
-  <p>
-    Ingresá tus datos para confirmar tu identidad
-    y consultar la credencial.
-  </p>
+  <p>Ingresá tus datos para consultar la credencial.</p>
 
   <form id="formulario">
 
@@ -99,13 +119,23 @@ button:hover {
       required
     >
 
-    <button type="submit">
+    <button id="boton" type="submit">
       CONFIRMAR IDENTIDAD
     </button>
 
   </form>
 
   <p id="mensaje"></p>
+
+  <div id="resultado">
+
+    <h2>👤 Datos del visitante</h2>
+
+    <div id="datos"></div>
+
+    <p id="estado"></p>
+
+  </div>
 
 </div>
 
@@ -120,6 +150,14 @@ import {
 }
 from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
+import {
+  getFirestore,
+  doc,
+  getDoc
+}
+from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+
 const firebaseConfig = {
   apiKey: "AIzaSyC0X4ZhY-Owf7bV2oNn15YR1KGIYnSCgnA",
   authDomain: "expo-escolar-2026.firebaseapp.com",
@@ -132,54 +170,163 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+const db = getFirestore(app);
 
 const formulario = document.getElementById("formulario");
 const mensaje = document.getElementById("mensaje");
+const resultado = document.getElementById("resultado");
+const datos = document.getElementById("datos");
+const estado = document.getElementById("estado");
+const boton = document.getElementById("boton");
 
-// Conservar el identificador del QR
 const token = new URLSearchParams(
   window.location.search
 ).get("token");
 
-formulario.addEventListener("submit", async function(e) {
+
+function mostrarDato(titulo, valor) {
+
+  const caja = document.createElement("div");
+  caja.className = "dato";
+
+  const nombre = document.createElement("strong");
+  nombre.textContent = titulo;
+
+  const contenido = document.createElement("span");
+  contenido.textContent =
+    valor !== undefined && valor !== null
+      ? String(valor)
+      : "No disponible";
+
+  caja.append(nombre, contenido);
+  datos.appendChild(caja);
+
+}
+
+
+formulario.addEventListener("submit", async (e) => {
 
   e.preventDefault();
 
-  const correo = document.getElementById("correo").value.trim();
-  const contrasena = document.getElementById("contrasena").value;
+  resultado.style.display = "none";
+  datos.replaceChildren();
+
+  boton.disabled = true;
+  boton.textContent = "CONSULTANDO...";
 
   mensaje.style.color = "#092e68";
   mensaje.textContent = "Verificando identidad...";
 
   try {
 
-    await signInWithEmailAndPassword(
+    // 1. Comprobar que exista el QR
+
+    if (!token) {
+      throw new Error(
+        "No se encontró el código QR. Escaneá nuevamente la credencial."
+      );
+    }
+
+    // 2. Iniciar sesión del directivo
+
+    const correo = document.getElementById("correo").value.trim();
+    const contrasena = document.getElementById("contrasena").value;
+
+    const credencial = await signInWithEmailAndPassword(
       auth,
       correo,
       contrasena
     );
 
-    if (!token) {
-      mensaje.style.color = "red";
-      mensaje.textContent =
-        "No se encontró el código QR. Escaneá nuevamente la credencial.";
-      return;
+    // 3. Comprobar autorización del directivo
+
+    const uid = credencial.user.uid;
+
+    const directivoRef = doc(db, "directivos", uid);
+    const directivoSnap = await getDoc(directivoRef);
+
+    if (
+      !directivoSnap.exists() ||
+      directivoSnap.data().autorizado !== true
+    ) {
+      throw new Error(
+        "Tu cuenta no está autorizada para consultar credenciales."
+      );
     }
+
+    // 4. Buscar a la persona mediante el token del QR
+
+    const registroRef = doc(db, "registros", token);
+    const registroSnap = await getDoc(registroRef);
+
+    if (!registroSnap.exists()) {
+      throw new Error(
+        "No se encontró esta credencial en Firebase."
+      );
+    }
+
+    const persona = registroSnap.data();
+
+    // 5. Mostrar todos los datos
+
+    mostrarDato("Nombre", persona.nombre);
+    mostrarDato("Apellido", persona.apellido);
+    mostrarDato("DNI", persona.dni);
+    mostrarDato("Correo electrónico", persona.correo);
+    mostrarDato("Categoría", persona.categoria);
+    mostrarDato("Institución", persona.institucion);
+
+    // 6. Mostrar estado de vencimiento
+
+    if (
+      persona.createdAt &&
+      typeof persona.createdAt.toDate === "function"
+    ) {
+
+      const creacion = persona.createdAt.toDate();
+
+      const vencimiento =
+        creacion.getTime() + 24 * 60 * 60 * 1000;
+
+      if (Date.now() < vencimiento) {
+
+        estado.style.color = "green";
+        estado.textContent = "✓ QR VIGENTE";
+
+      } else {
+
+        estado.style.color = "red";
+        estado.textContent = "✗ QR VENCIDO";
+
+      }
+
+    } else {
+
+      estado.style.color = "#b36b00";
+      estado.textContent = "No se pudo comprobar el vencimiento.";
+
+    }
+
+    resultado.style.display = "block";
 
     mensaje.style.color = "green";
     mensaje.textContent =
-      "Identidad del directivo confirmada. Acceso autorizado.";
+      "✓ Identidad del directivo confirmada.";
 
-    formulario.reset();
-
-    // El identificador del QR queda disponible
-    // para la siguiente etapa de consulta segura.
+    formulario.style.display = "none";
 
   } catch (error) {
 
+    console.error(error);
+
     mensaje.style.color = "red";
-    mensaje.textContent =
-      "Correo o contraseña incorrectos. Intentá nuevamente.";
+    mensaje.textContent = error.message ||
+      "Ocurrió un error al consultar la credencial.";
+
+  } finally {
+
+    boton.disabled = false;
+    boton.textContent = "CONFIRMAR IDENTIDAD";
 
   }
 
