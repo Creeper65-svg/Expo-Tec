@@ -4,7 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Consulta de directivos - Expo Escolar 2026</title>
+<title>Consulta de credenciales - Expo Escolar 2026</title>
 
 <style>
 * { box-sizing: border-box; }
@@ -24,13 +24,17 @@ body {
   background: white;
   width: 100%;
   max-width: 430px;
-  padding: 25px;
+  padding: 28px;
   border-radius: 18px;
   box-shadow: 0 5px 20px #0002;
+}
+
+h1, h2 {
+  color: #092e68;
   text-align: center;
 }
 
-h1 { color: #092e68; font-size: 25px; }
+h1 { font-size: 24px; }
 
 input {
   width: 100%;
@@ -56,38 +60,41 @@ button {
 
 #mensaje {
   margin-top: 18px;
+  text-align: center;
   font-size: 14px;
-  overflow-wrap: anywhere;
 }
 
 #resultado {
   display: none;
-  text-align: left;
   margin-top: 25px;
-  border-top: 2px solid #092e68;
-  padding-top: 15px;
 }
 
 .dato {
   padding: 12px;
-  margin: 8px 0;
+  margin-top: 8px;
   background: #f1f4fa;
   border-radius: 8px;
   overflow-wrap: anywhere;
 }
 
-.dato strong {
+.etiqueta {
+  color: #64748b;
+  font-size: 12px;
   display: block;
-  color: #092e68;
   margin-bottom: 5px;
 }
 
-#estado {
-  text-align: center;
+.valor {
+  color: #092e68;
   font-weight: bold;
-  padding: 12px;
-  border-radius: 8px;
-  background: #f1f4fa;
+}
+
+.estado {
+  text-align: center;
+  padding: 14px;
+  margin-top: 18px;
+  border-radius: 9px;
+  font-weight: bold;
 }
 </style>
 </head>
@@ -99,7 +106,10 @@ button {
   <h1>🎓 EXPO ESCOLAR 2026</h1>
   <h2>Acceso de directivos</h2>
 
-  <p>Ingresá tus datos para consultar la credencial.</p>
+  <p style="text-align:center">
+    Ingresá tus datos para confirmar tu identidad
+    y consultar la credencial.
+  </p>
 
   <form id="formulario">
 
@@ -128,13 +138,39 @@ button {
   <p id="mensaje"></p>
 
   <div id="resultado">
+    <h2>Credencial encontrada</h2>
 
-    <h2>👤 Datos del visitante</h2>
+    <div class="dato">
+      <span class="etiqueta">Nombre</span>
+      <span class="valor" id="nombre"></span>
+    </div>
 
-    <div id="datos"></div>
+    <div class="dato">
+      <span class="etiqueta">Apellido</span>
+      <span class="valor" id="apellido"></span>
+    </div>
 
-    <p id="estado"></p>
+    <div class="dato">
+      <span class="etiqueta">DNI</span>
+      <span class="valor" id="dni"></span>
+    </div>
 
+    <div class="dato">
+      <span class="etiqueta">Correo electrónico</span>
+      <span class="valor" id="correoVisitante"></span>
+    </div>
+
+    <div class="dato">
+      <span class="etiqueta">Categoría</span>
+      <span class="valor" id="categoria"></span>
+    </div>
+
+    <div class="dato">
+      <span class="etiqueta">Institución</span>
+      <span class="valor" id="institucion"></span>
+    </div>
+
+    <div id="estado" class="estado"></div>
   </div>
 
 </div>
@@ -157,7 +193,6 @@ import {
 }
 from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-
 const firebaseConfig = {
   apiKey: "AIzaSyC0X4ZhY-Owf7bV2oNn15YR1KGIYnSCgnA",
   authDomain: "expo-escolar-2026.firebaseapp.com",
@@ -175,60 +210,29 @@ const db = getFirestore(app);
 const formulario = document.getElementById("formulario");
 const mensaje = document.getElementById("mensaje");
 const resultado = document.getElementById("resultado");
-const datos = document.getElementById("datos");
-const estado = document.getElementById("estado");
 const boton = document.getElementById("boton");
 
 const token = new URLSearchParams(
   window.location.search
 ).get("token");
 
-
-function mostrarDato(titulo, valor) {
-
-  const caja = document.createElement("div");
-  caja.className = "dato";
-
-  const nombre = document.createElement("strong");
-  nombre.textContent = titulo;
-
-  const contenido = document.createElement("span");
-  contenido.textContent =
-    valor !== undefined && valor !== null
-      ? String(valor)
-      : "No disponible";
-
-  caja.append(nombre, contenido);
-  datos.appendChild(caja);
-
-}
-
-
 formulario.addEventListener("submit", async (e) => {
 
   e.preventDefault();
 
   resultado.style.display = "none";
-  datos.replaceChildren();
-
   boton.disabled = true;
-  boton.textContent = "CONSULTANDO...";
-
+  boton.textContent = "VERIFICANDO...";
   mensaje.style.color = "#092e68";
   mensaje.textContent = "Verificando identidad...";
 
   try {
 
-    // 1. Comprobar que exista el QR
-
     if (!token) {
-      throw new Error(
-        "No se encontró el código QR. Escaneá nuevamente la credencial."
-      );
+      throw new Error("No se encontró el código QR. Escaneá nuevamente.");
     }
 
-    // 2. Iniciar sesión del directivo
-
+    // 1. Iniciar sesión del directivo
     const correo = document.getElementById("correo").value.trim();
     const contrasena = document.getElementById("contrasena").value;
 
@@ -238,10 +242,9 @@ formulario.addEventListener("submit", async (e) => {
       contrasena
     );
 
-    // 3. Comprobar autorización del directivo
-
     const uid = credencial.user.uid;
 
+    // 2. Comprobar autorización del directivo
     const directivoRef = doc(db, "directivos", uid);
     const directivoSnap = await getDoc(directivoRef);
 
@@ -249,79 +252,62 @@ formulario.addEventListener("submit", async (e) => {
       !directivoSnap.exists() ||
       directivoSnap.data().autorizado !== true
     ) {
-      throw new Error(
-        "Tu cuenta no está autorizada para consultar credenciales."
-      );
+      throw new Error("Tu cuenta no está autorizada para consultar credenciales.");
     }
 
-    // 4. Buscar a la persona mediante el token del QR
-
+    // 3. Buscar la credencial por el token del QR
     const registroRef = doc(db, "registros", token);
     const registroSnap = await getDoc(registroRef);
 
     if (!registroSnap.exists()) {
-      throw new Error(
-        "No se encontró esta credencial en Firebase."
-      );
+      throw new Error("No se encontró ninguna credencial con este código QR.");
     }
 
-    const persona = registroSnap.data();
+    const datos = registroSnap.data();
 
-    // 5. Mostrar todos los datos
+    // 4. Mostrar los datos del visitante
+    document.getElementById("nombre").textContent = datos.nombre || "";
+    document.getElementById("apellido").textContent = datos.apellido || "";
+    document.getElementById("dni").textContent = datos.dni || "";
+    document.getElementById("correoVisitante").textContent = datos.correo || "";
+    document.getElementById("categoria").textContent = datos.categoria || "";
+    document.getElementById("institucion").textContent = datos.institucion || "";
 
-    mostrarDato("Nombre", persona.nombre);
-    mostrarDato("Apellido", persona.apellido);
-    mostrarDato("DNI", persona.dni);
-    mostrarDato("Correo electrónico", persona.correo);
-    mostrarDato("Categoría", persona.categoria);
-    mostrarDato("Institución", persona.institucion);
+    // 5. Comprobar vencimiento de 24 horas
+    const estado = document.getElementById("estado");
 
-    // 6. Mostrar estado de vencimiento
-
-    if (
-      persona.createdAt &&
-      typeof persona.createdAt.toDate === "function"
-    ) {
-
-      const creacion = persona.createdAt.toDate();
-
-      const vencimiento =
-        creacion.getTime() + 24 * 60 * 60 * 1000;
-
-      if (Date.now() < vencimiento) {
-
-        estado.style.color = "green";
-        estado.textContent = "✓ QR VIGENTE";
-
-      } else {
-
-        estado.style.color = "red";
-        estado.textContent = "✗ QR VENCIDO";
-
-      }
-
+    if (!datos.createdAt || typeof datos.createdAt.toDate !== "function") {
+      estado.textContent = "NO SE PUDO COMPROBAR EL VENCIMIENTO";
+      estado.style.background = "#fff3cd";
+      estado.style.color = "#856404";
     } else {
+      const fechaCreacion = datos.createdAt.toDate();
+      const vencimiento = fechaCreacion.getTime() + (24 * 60 * 60 * 1000);
+      const vigente = Date.now() < vencimiento;
 
-      estado.style.color = "#b36b00";
-      estado.textContent = "No se pudo comprobar el vencimiento.";
-
+      if (vigente) {
+        estado.textContent = "✓ CREDENCIAL VIGENTE";
+        estado.style.background = "#d1fae5";
+        estado.style.color = "#065f46";
+      } else {
+        estado.textContent = "✕ CREDENCIAL VENCIDA";
+        estado.style.background = "#fee2e2";
+        estado.style.color = "#991b1b";
+      }
     }
-
-    resultado.style.display = "block";
 
     mensaje.style.color = "green";
-    mensaje.textContent =
-      "✓ Identidad del directivo confirmada.";
+    mensaje.textContent = "Identidad del directivo confirmada. Acceso autorizado.";
 
     formulario.style.display = "none";
+    resultado.style.display = "block";
 
   } catch (error) {
 
     console.error(error);
 
     mensaje.style.color = "red";
-    mensaje.textContent = error.message ||
-      "Ocurrió un error al consultar la credencial.";
+    mensaje.textContent = error.message;
 
   } finally {
 
