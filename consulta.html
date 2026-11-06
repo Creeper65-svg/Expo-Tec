@@ -1,0 +1,191 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Acceso de directivos - Expo Escolar 2026</title>
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+  font-family: Arial, sans-serif;
+  background: #eef1f8;
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.contenedor {
+  background: white;
+  width: 100%;
+  max-width: 400px;
+  padding: 30px;
+  border-radius: 18px;
+  box-shadow: 0 5px 20px #0002;
+  text-align: center;
+}
+
+h1 {
+  color: #092e68;
+  font-size: 25px;
+}
+
+input {
+  width: 100%;
+  padding: 14px;
+  margin-top: 15px;
+  border: 1px solid #b8c3d8;
+  border-radius: 9px;
+  font-size: 16px;
+}
+
+button {
+  width: 100%;
+  padding: 15px;
+  margin-top: 22px;
+  background: #092e68;
+  color: white;
+  border: none;
+  border-radius: 9px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #174b91;
+}
+
+#mensaje {
+  margin-top: 18px;
+  font-size: 14px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="contenedor">
+
+  <h1>🎓 EXPO ESCOLAR 2026</h1>
+
+  <h2>Acceso de directivos</h2>
+
+  <p>
+    Ingresá tus datos para confirmar tu identidad
+    y consultar la credencial.
+  </p>
+
+  <form id="formulario">
+
+    <input
+      type="email"
+      id="correo"
+      placeholder="Correo electrónico"
+      autocomplete="username"
+      required
+    >
+
+    <input
+      type="password"
+      id="contrasena"
+      placeholder="Contraseña"
+      autocomplete="current-password"
+      required
+    >
+
+    <button type="submit">
+      CONFIRMAR IDENTIDAD
+    </button>
+
+  </form>
+
+  <p id="mensaje"></p>
+
+</div>
+
+<script type="module">
+
+import { initializeApp }
+from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+
+import {
+  getAuth,
+  signInWithEmailAndPassword
+}
+from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyC0X4ZhY-Owf7bV2oNn15YR1KGIYnSCgnA",
+  authDomain: "expo-escolar-2026.firebaseapp.com",
+  projectId: "expo-escolar-2026",
+  storageBucket: "expo-escolar-2026.firebasestorage.app",
+  messagingSenderId: "274619490573",
+  appId: "1:274619490573:web:20b74a8314392dd1be9044",
+  measurementId: "G-JC0W6XCN4W"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+
+const formulario = document.getElementById("formulario");
+const mensaje = document.getElementById("mensaje");
+
+// Conservar el identificador del QR
+const token = new URLSearchParams(
+  window.location.search
+).get("token");
+
+formulario.addEventListener("submit", async function(e) {
+
+  e.preventDefault();
+
+  const correo = document.getElementById("correo").value.trim();
+  const contrasena = document.getElementById("contrasena").value;
+
+  mensaje.style.color = "#092e68";
+  mensaje.textContent = "Verificando identidad...";
+
+  try {
+
+    await signInWithEmailAndPassword(
+      auth,
+      correo,
+      contrasena
+    );
+
+    if (!token) {
+      mensaje.style.color = "red";
+      mensaje.textContent =
+        "No se encontró el código QR. Escaneá nuevamente la credencial.";
+      return;
+    }
+
+    mensaje.style.color = "green";
+    mensaje.textContent =
+      "Identidad del directivo confirmada. Acceso autorizado.";
+
+    formulario.reset();
+
+    // El identificador del QR queda disponible
+    // para la siguiente etapa de consulta segura.
+
+  } catch (error) {
+
+    mensaje.style.color = "red";
+    mensaje.textContent =
+      "Correo o contraseña incorrectos. Intentá nuevamente.";
+
+  }
+
+});
+
+</script>
+
+</body>
+</html>

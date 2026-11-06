@@ -1,0 +1,362 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Expo Escolar 2026</title>
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+  font-family: Arial, sans-serif;
+  background: #eef1f8;
+  margin: 0;
+  padding: 20px;
+  color: #101b32;
+}
+
+.contenedor {
+  max-width: 650px;
+  margin: auto;
+  background: white;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 5px 20px #0002;
+}
+
+.encabezado {
+  background: #092e68;
+  color: white;
+  text-align: center;
+  padding: 22px;
+}
+
+.encabezado h1 {
+  margin: 0;
+  font-size: 27px;
+}
+
+.formulario { padding: 25px; }
+
+h2 { text-align: center; }
+
+label {
+  display: block;
+  font-weight: bold;
+  margin-top: 15px;
+}
+
+input, select {
+  width: 100%;
+  padding: 13px;
+  margin-top: 6px;
+  border: 1px solid #b8c3d8;
+  border-radius: 9px;
+  font-size: 16px;
+}
+
+button {
+  width: 100%;
+  padding: 15px;
+  margin-top: 22px;
+  background: #092e68;
+  color: white;
+  border: none;
+  border-radius: 9px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+button:hover { background: #174b91; }
+
+#credencial {
+  display: none;
+  margin: 25px;
+  padding: 20px;
+  border: 3px solid #092e68;
+  border-radius: 15px;
+  text-align: center;
+}
+
+#credencial h2 { color: #092e68; }
+
+.nombre {
+  font-size: 27px;
+  font-weight: bold;
+}
+
+.tipo {
+  display: inline-block;
+  background: #e7efff;
+  color: #092e68;
+  padding: 10px 20px;
+  border-radius: 20px;
+  margin: 12px 0;
+  font-weight: bold;
+  font-size: 17px;
+  border: 1px solid #092e68;
+}
+
+.autorizado {
+  background: #19864b;
+  color: white;
+  padding: 10px;
+  border-radius: 20px;
+  margin: 10px 0;
+  font-weight: bold;
+}
+
+.datos {
+  text-align: left;
+  border-top: 2px solid #092e68;
+  padding-top: 15px;
+  line-height: 2;
+}
+
+#qrcode {
+  display: flex;
+  justify-content: center;
+  margin: 20px auto;
+}
+
+#qrcode img {
+  max-width: 100%;
+  height: auto;
+}
+
+@media print {
+  body {
+    background: white;
+    padding: 0;
+  }
+
+  .formulario, .acciones {
+    display: none !important;
+  }
+
+  .contenedor {
+    box-shadow: none;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="contenedor">
+
+  <div class="encabezado">
+    <h1>🎓 EXPO ESCOLAR 2026</h1>
+    <p>Registro de visitantes</p>
+  </div>
+
+  <div class="formulario">
+
+    <h2>¡Bienvenido a nuestra exposición!</h2>
+    <p>Completá tus datos para obtener tu credencial.</p>
+
+    <form id="formulario">
+
+      <label>Nombre</label>
+      <input type="text" id="nombre" placeholder="Ingresá tu nombre" required>
+
+      <label>Apellido</label>
+      <input type="text" id="apellido" placeholder="Ingresá tu apellido" required>
+
+      <label>DNI</label>
+      <input type="text" id="dni"
+      placeholder="8 números sin puntos"
+      inputmode="numeric"
+      maxlength="8"
+      minlength="8"
+      pattern="[0-9]{8}" required>
+
+      <label>Correo electrónico</label>
+      <input type="email" id="correo"
+      placeholder="ejemplo@correo.com" required>
+
+      <label>Tipo de visitante</label>
+      <select id="categoria" required>
+        <option value="">Seleccionar categoría</option>
+        <option>Alumno</option>
+        <option>Docente</option>
+        <option>Familiar</option>
+        <option>Visitante</option>
+        <option>Personal escolar</option>
+      </select>
+
+      <label>Institución</label>
+      <input type="text" id="institucion"
+      placeholder="Escuela u organización" required>
+
+      <button type="submit">
+        REGISTRARME Y GENERAR CREDENCIAL
+      </button>
+
+    </form>
+  </div>
+
+  <div id="credencial">
+
+    <h2>🎓 EXPO ESCOLAR 2026</h2>
+    <h3>CREDENCIAL DE INGRESO</h3>
+
+    <div style="font-size:55px">👤</div>
+
+    <div class="nombre" id="cNombre"></div>
+
+    <div class="tipo" id="cCategoria"></div>
+
+    <div class="autorizado">
+      ✓ REGISTRO COMPLETADO
+    </div>
+
+    <div class="datos">
+      <strong>Institución:</strong>
+      <span id="cInstitucion"></span>
+    </div>
+
+    <div id="qrcode"></div>
+
+    <p><strong>Presentar esta credencial en la entrada.</strong></p>
+
+  </div>
+
+  <div class="acciones" style="padding: 0 25px 25px">
+    <button id="imprimir" type="button"
+    style="display:none" onclick="window.print()">
+      IMPRIMIR CREDENCIAL
+    </button>
+  </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+
+<script type="module">
+
+import { initializeApp }
+from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+
+import {
+  getFirestore,
+  doc,
+  setDoc,
+  serverTimestamp
+}
+from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyC0X4ZhY-Owf7bV2oNn15YR1KGIYnSCgnA",
+  authDomain: "expo-escolar-2026.firebaseapp.com",
+  projectId: "expo-escolar-2026",
+  storageBucket: "expo-escolar-2026.firebasestorage.app",
+  messagingSenderId: "274619490573",
+  appId: "1:274619490573:web:20b74a8314392dd1be9044",
+  measurementId: "G-JC0W6XCN4W"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+const formulario = document.getElementById("formulario");
+
+document.getElementById("dni").addEventListener("input", function() {
+  this.value = this.value.replace(/[^0-9]/g, "").slice(0, 8);
+});
+
+formulario.addEventListener("submit", async function(e) {
+
+  e.preventDefault();
+
+  const boton = formulario.querySelector("button");
+  boton.disabled = true;
+  boton.textContent = "GUARDANDO REGISTRO...";
+
+  try {
+
+    const nombre = document.getElementById("nombre").value.trim();
+    const apellido = document.getElementById("apellido").value.trim();
+    const dni = document.getElementById("dni").value;
+    const correo = document.getElementById("correo").value.trim();
+    const categoria = document.getElementById("categoria").value;
+    const institucion = document.getElementById("institucion").value.trim();
+
+    if (!/^[0-9]{8}$/.test(dni)) {
+      throw new Error("El DNI debe tener exactamente 8 números.");
+    }
+
+    // Identificador único
+    const id = crypto.randomUUID();
+
+    // Guardar datos en Firestore
+    await setDoc(doc(db, "registros", id), {
+      nombre,
+      apellido,
+      dni,
+      correo,
+      categoria,
+      institucion,
+      createdAt: serverTimestamp()
+    });
+
+    // Mostrar datos en la credencial
+    document.getElementById("cNombre").textContent =
+      nombre + " " + apellido;
+
+    document.getElementById("cCategoria").textContent =
+      categoria.toUpperCase();
+
+    document.getElementById("cInstitucion").textContent =
+      institucion;
+
+    // Crear QR con el enlace de consulta
+    document.getElementById("qrcode").innerHTML = "";
+
+    const urlConsulta = new URL(
+      "consulta.html",
+      window.location.href
+    );
+
+    urlConsulta.searchParams.set("token", id);
+
+    new QRCode(document.getElementById("qrcode"), {
+      text: urlConsulta.href,
+      width: 160,
+      height: 160,
+      correctLevel: QRCode.CorrectLevel.M
+    });
+
+    // Mostrar credencial
+    document.getElementById("credencial").style.display = "block";
+    document.getElementById("imprimir").style.display = "block";
+
+    formulario.parentElement.style.display = "none";
+
+    document.getElementById("credencial").scrollIntoView({
+      behavior: "smooth"
+    });
+
+  } catch (error) {
+
+    console.error(error);
+    alert("No se pudo guardar el registro: " + error.message);
+
+  } finally {
+
+    boton.disabled = false;
+    boton.textContent = "REGISTRARME Y GENERAR CREDENCIAL";
+
+  }
+
+});
+
+</script>
+
+
+</body>
+</html>
